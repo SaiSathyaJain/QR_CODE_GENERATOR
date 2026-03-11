@@ -1,0 +1,30 @@
+{
+  "name": "sssihl-gradecard",
+  "version": "1.0.0",
+  "description": "SSSIHL Digital Consolidated Grade Card QR Code System",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "deploy:frontend": "wrangler pages deploy frontend --project-name=sssihl-gradecard-admin",
+    "db:migrate:local": "wrangler d1 migrations apply sssihl-gradecard-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply sssihl-gradecard-db --remote",
+    "hashpwd": "node -e \"const crypto=require('crypto');const pwd=process.argv[1];crypto.subtle.importKey('raw',new TextEncoder().encode(pwd),'PBKDF2',false,['deriveBits']).then(k=>crypto.subtle.deriveBits({name:'PBKDF2',salt:new TextEncoder().encode('sssihl-salt'),iterations:100000,hash:'SHA-256'},k,256)).then(b=>console.log(Buffer.from(b).toString('base64')))\""
+  },
+  "keywords": [],
+  "author": "SSSIHL",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "hono": "^4.12.7",
+    "jose": "^6.2.1",
+    "qrcode": "^1.5.4",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260310.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.72.0"
+  }
+}

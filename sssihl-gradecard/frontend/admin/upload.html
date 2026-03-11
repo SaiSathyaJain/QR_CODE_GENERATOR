@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Add / Edit Student — SSSIHL Grade Card Management</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh}
+    .nav{background:#1a237e;color:#fff;padding:0 24px;display:flex;align-items:center;
+         justify-content:space-between;height:56px}
+    .nav-brand{font-weight:700;font-size:.95rem}
+    .nav-back{color:#fff;text-decoration:none;font-size:.85rem;opacity:.8}
+    .nav-back:hover{opacity:1}
+    main{max-width:720px;margin:28px auto;padding:0 16px 40px}
+    .page-title{font-size:1.2rem;font-weight:700;color:#1a237e;margin-bottom:20px}
+
+    .card{background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(26,35,126,.08);
+          padding:28px 32px;margin-bottom:20px}
+    .section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:#1a237e;
+                   font-weight:700;border-bottom:1px solid #e8eaf6;padding-bottom:8px;margin-bottom:18px}
+
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .form-group{display:flex;flex-direction:column;gap:5px}
+    .form-group.full{grid-column:1/-1}
+    label{font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;
+          color:#777;font-weight:600}
+    input,select{padding:9px 13px;border:1.5px solid #ddd;border-radius:5px;
+                 font-size:.9rem;outline:none;transition:border-color .2s;width:100%}
+    input:focus,select:focus{border-color:#1a237e}
+    input.error,select.error{border-color:#c62828}
+    .field-error{color:#c62828;font-size:.72rem}
+
+    /* Photo upload */
+    .photo-upload-wrap{display:flex;gap:20px;align-items:flex-start}
+    .photo-preview{width:100px;height:120px;border:2px dashed #ddd;border-radius:5px;
+                   display:flex;align-items:center;justify-content:center;overflow:hidden;
+                   background:#f5f7ff;flex-shrink:0}
+    .photo-preview img{width:100%;height:100%;object-fit:cover}
+    .photo-preview .placeholder{font-size:.7rem;color:#aaa;text-align:center;padding:8px}
+    .file-btn{display:inline-block;padding:8px 16px;background:#e8eaf6;border-radius:5px;
+              cursor:pointer;font-size:.8rem;color:#1a237e;font-weight:600;margin-top:6px}
+    .file-btn:hover{background:#c5cae9}
+    .file-note{font-size:.72rem;color:#aaa;margin-top:4px}
+    input[type=file]{display:none}
+
+    /* Actions */
+    .form-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:8px}
+    .btn{padding:10px 24px;border-radius:5px;border:none;cursor:pointer;
+         font-size:.9rem;font-weight:600;transition:background .2s}
+    .btn-primary{background:#1a237e;color:#fff}
+    .btn-primary:hover{background:#283593}
+    .btn-primary:disabled{background:#9fa8da;cursor:not-allowed}
+    .btn-outline{background:#fff;border:1.5px solid #ccc;color:#555}
+    .btn-outline:hover{background:#f5f5f5}
+
+    /* Success panel */
+    .success-panel{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;
+                   padding:24px;text-align:center;display:none}
+    .success-panel h3{color:#1b5e20;margin-bottom:8px}
+    .success-panel p{color:#388e3c;font-size:.9rem;margin-bottom:16px}
+    .qr-success{margin:0 auto 12px;display:block;width:160px;height:160px;
+                border:1px solid #a5d6a7;border-radius:4px}
+
+    /* Global error */
+    .alert{background:#ffebee;border:1px solid #ef9a9a;color:#c62828;
+           border-radius:5px;padding:10px 14px;font-size:.85rem;margin-bottom:16px;display:none}
+
+    @media(max-width:520px){
+      .form-grid{grid-template-columns:1fr}
+      .photo-upload-wrap{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">SSSIHL · Grade Card Management</div>
+  <a class="nav-back" href="dashboard.html">← Back to Dashboard</a>
+</nav>
+
+<main>
+  <div class="page-title" id="pageTitle">Add New Student</div>
+
+  <div class="alert" id="alertMsg"></div>
+
+  <!-- ── Student Details ── -->
+  <div class="card">
+    <div class="section-title">Student Details</div>
+    <form id="studentForm" novalidate>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="student_name">Full Name *</label>
+          <input type="text" id="student_name" name="student_name" required/>
+          <span class="field-error" id="err_student_name"></span>
+        </div>
+        <div class="form-group">
+          <label for="regd_no">Registration No. *</label>
+          <input type="text" id="regd_no" name="regd_no" required/>
+          <span class="field-error" id="err_regd_no"></span>
+        </div>
+        <div class="form-group">
+          <label for="programme">Programme *</label>
+          <input type="text" id="programme" name="programme" placeholder="e.g. B.Sc. Mathematics" required/>
+          <span class="field-error" id="err_programme"></span>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Academic Performance ── -->
+  <div class="card">
+    <div class="section-title">Academic Performance</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="cgpa">CGPA (0–10) *</label>
+        <input type="number" id="cgpa" name="cgpa" step="0.01" min="0" max="10" required/>
+        <span class="field-error" id="err_cgpa"></span>
+      </div>
+      <div class="form-group">
+        <label for="letter_grade">Letter Grade *</label>
+        <select id="letter_grade" name="letter_grade" required>
+          <option value="">— Select —</option>
+          <option value="O">O (Outstanding)</option>
+          <option value="A+">A+ (Excellent)</option>
+          <option value="A">A (Very Good)</option>
+          <option value="B+">B+ (Good)</option>
+          <option value="B">B (Above Average)</option>
+          <option value="C">C (Average)</option>
+          <option value="P">P (Pass)</option>
+          <option value="F">F (Fail)</option>
+        </select>
+        <span class="field-error" id="err_letter_grade"></span>
+      </div>
+      <div class="form-group">
+        <label for="equivalent_percentage">Equivalent Percentage *</label>
+        <input type="number" id="equivalent_percentage" name="equivalent_percentage"
+               step="0.01" min="0" max="100" required/>
+        <span class="field-error" id="err_equivalent_percentage"></span>
+      </div>
+      <div class="form-group">
+        <label for="qualitative_assessment">Qualitative Assessment *</label>
+        <select id="qualitative_assessment" name="qualitative_assessment" required>
+          <option value="">— Select —</option>
+          <option value="First Class with Distinction">First Class with Distinction</option>
+          <option value="First Class">First Class</option>
+          <option value="Second Class">Second Class</option>
+          <option value="Pass Class">Pass Class</option>
+          <option value="Fail">Fail</option>
+        </select>
+        <span class="field-error" id="err_qualitative_assessment"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Certificate Details ── -->
+  <div class="card">
+    <div class="section-title">Certificate Details</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label for="serial_no">Serial No. *</label>
+        <input type="text" id="serial_no" name="serial_no" required/>
+        <span class="field-error" id="err_serial_no"></span>
+      </div>
+      <div class="form-group">
+        <label for="cert_approval_date">Certificate Approval Date *</label>
+        <input type="date" id="cert_approval_date" name="cert_approval_date" required/>
+        <span class="field-error" id="err_cert_approval_date"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Passport Photo ── -->
+  <div class="card">
+    <div class="section-title">Passport Photo</div>
+    <div class="photo-upload-wrap">
+      <div class="photo-preview" id="photoPreview">
+        <div class="placeholder">No photo selected</div>
+      </div>
+      <div>
+        <div style="font-size:.85rem;color:#555;margin-bottom:8px">
+          Upload a clear passport-size photo (JPEG / PNG / WebP, max 5 MB).
+        </div>
+        <label class="file-btn" for="photoInput">Choose Photo</label>
+        <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/webp"/>
+        <div class="file-note" id="fileNote">No file chosen</div>
+        <span class="field-error" id="err_photo"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Form Actions ── -->
+  <div class="form-actions">
+    <button type="button" class="btn btn-outline" onclick="location.href='dashboard.html'">Cancel</button>
+    <button type="button" class="btn btn-primary" id="submitBtn">Save &amp; Generate QR</button>
+  </div>
+
+  <!-- ── Success Panel ── -->
+  <div class="success-panel" id="successPanel">
+    <h3>Student Added Successfully!</h3>
+    <p>The QR code has been generated and stored.</p>
+    <img id="qrSuccessImg" class="qr-success" alt="QR Code"/>
+    <br/>
+    <button class="btn btn-primary" id="downloadQRBtn" style="margin-right:10px">Download QR</button>
+    <button class="btn btn-outline" onclick="location.href='dashboard.html'">Back to Dashboard</button>
+  </div>
+</main>
+
+<script>
+  const API = '';
+  const params = new URLSearchParams(location.search);
+  const editId = params.get('edit');
+  let createdStudentId = null;
+
+  if (editId) {
+    document.getElementById('pageTitle').textContent = 'Edit Student';
+    document.getElementById('submitBtn').textContent = 'Save Changes';
+    loadStudent(editId);
+  }
+
+  async function loadStudent(id) {
+    try {
+      const res = await fetch(`${API}/api/admin/students/${id}`, { credentials: 'include' });
+      if (!res.ok) { showAlert('Could not load student.'); return; }
+      const s = await res.json();
+      document.getElementById('student_name').value = s.student_name;
+      document.getElementById('regd_no').value = s.regd_no;
+      document.getElementById('programme').value = s.programme;
+      document.getElementById('cgpa').value = s.cgpa;
+      document.getElementById('letter_grade').value = s.letter_grade;
+      document.getElementById('equivalent_percentage').value = s.equivalent_percentage;
+      document.getElementById('qualitative_assessment').value = s.qualitative_assessment;
+      document.getElementById('serial_no').value = s.serial_no;
+      document.getElementById('cert_approval_date').value = s.cert_approval_date.slice(0,10);
+      if (s.photo_r2_key) {
+        const img = document.createElement('img');
+        img.src = `/assets/${s.photo_r2_key}`;
+        document.getElementById('photoPreview').innerHTML = '';
+        document.getElementById('photoPreview').appendChild(img);
+      }
+    } catch {
+      showAlert('Network error loading student.');
+    }
+  }
+
+  // Photo preview
+  document.getElementById('photoInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    document.getElementById('fileNote').textContent = `${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const preview = document.getElementById('photoPreview');
+      preview.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      preview.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Client-side validation
+  function validate() {
+    let ok = true;
+    const required = ['student_name','regd_no','programme','letter_grade',
+                      'qualitative_assessment','serial_no','cert_approval_date'];
+    for (const f of required) {
+      const el = document.getElementById(f);
+      const err = document.getElementById(`err_${f}`);
+      if (!el.value.trim()) {
+        el.classList.add('error'); err.textContent = 'This field is required.'; ok = false;
+      } else {
+        el.classList.remove('error'); if (err) err.textContent = '';
+      }
+    }
+    const cgpa = parseFloat(document.getElementById('cgpa').value);
+    const cgpaEl = document.getElementById('cgpa');
+    const cgpaErr = document.getElementById('err_cgpa');
+    if (isNaN(cgpa) || cgpa < 0 || cgpa > 10) {
+      cgpaEl.classList.add('error'); cgpaErr.textContent = 'CGPA must be 0–10.'; ok = false;
+    } else { cgpaEl.classList.remove('error'); cgpaErr.textContent = ''; }
+
+    const pct = parseFloat(document.getElementById('equivalent_percentage').value);
+    const pctEl = document.getElementById('equivalent_percentage');
+    const pctErr = document.getElementById('err_equivalent_percentage');
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      pctEl.classList.add('error'); pctErr.textContent = 'Must be 0–100.'; ok = false;
+    } else { pctEl.classList.remove('error'); pctErr.textContent = ''; }
+
+    // Photo validation (only for new records)
+    const photoFile = document.getElementById('photoInput').files[0];
+    const photoErr = document.getElementById('err_photo');
+    if (photoFile) {
+      const allowed = ['image/jpeg','image/jpg','image/png','image/webp'];
+      if (!allowed.includes(photoFile.type)) {
+        photoErr.textContent = 'Photo must be JPEG, PNG, or WebP.'; ok = false;
+      } else if (photoFile.size > 5 * 1024 * 1024) {
+        photoErr.textContent = 'Photo must be ≤ 5 MB.'; ok = false;
+      } else { photoErr.textContent = ''; }
+    } else { photoErr.textContent = ''; }
+
+    return ok;
+  }
+
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    if (!validate()) return;
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = editId ? 'Saving…' : 'Creating…';
+    hideAlert();
+
+    const fd = new FormData();
+    const fields = ['student_name','regd_no','programme','cgpa','letter_grade',
+                    'equivalent_percentage','qualitative_assessment','serial_no','cert_approval_date'];
+    for (const f of fields) {
+      fd.append(f, document.getElementById(f).value);
+    }
+    const photoFile = document.getElementById('photoInput').files[0];
+    if (photoFile) fd.append('photo', photoFile);
+
+    try {
+      const url = editId
+        ? `${API}/api/admin/students/${editId}`
+        : `${API}/api/admin/students`;
+      const res = await fetch(url, {
+        method: editId ? 'PUT' : 'POST',
+        body: fd,
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data.errors?.map(e => e.message).join(', ') ?? data.error ?? 'Unknown error';
+        showAlert(msg);
+        return;
+      }
+      createdStudentId = data.id;
+      if (!editId) {
+        showSuccess(data);
+      } else {
+        location.href = 'dashboard.html';
+      }
+    } catch {
+      showAlert('Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = editId ? 'Save Changes' : 'Save & Generate QR';
+    }
+  });
+
+  function showSuccess(student) {
+    document.getElementById('successPanel').style.display = 'block';
+    document.querySelectorAll('.card, .form-actions').forEach(el => el.style.display = 'none');
+
+    if (student.qr_r2_key) {
+      const qrImg = document.getElementById('qrSuccessImg');
+      qrImg.src = `/assets/${student.qr_r2_key}`;
+      qrImg.style.display = 'block';
+    } else {
+      document.getElementById('qrSuccessImg').style.display = 'none';
+    }
+
+    document.getElementById('downloadQRBtn').addEventListener('click', async () => {
+      const res = await fetch(`${API}/api/admin/students/${student.id}/qr`, { credentials: 'include' });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${student.regd_no}_qr.png`; a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  function showAlert(msg) {
+    const el = document.getElementById('alertMsg');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function hideAlert() {
+    document.getElementById('alertMsg').style.display = 'none';
+  }
+</script>
+</body>
+</html>

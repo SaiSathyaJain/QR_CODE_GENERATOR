@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Dashboard — SSSIHL Grade Card Management</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh}
+
+    /* Navbar */
+    .nav{background:#1a237e;color:#fff;padding:0 24px;display:flex;align-items:center;
+         justify-content:space-between;height:56px}
+    .nav-brand{font-weight:700;font-size:.95rem;letter-spacing:.5px}
+    .nav-actions{display:flex;gap:12px;align-items:center}
+    .btn{padding:7px 16px;border-radius:5px;border:none;cursor:pointer;
+         font-size:.8rem;font-weight:600;transition:background .2s}
+    .btn-primary{background:#c8a951;color:#1a237e}
+    .btn-primary:hover{background:#e0c060}
+    .btn-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.5)}
+    .btn-outline:hover{background:rgba(255,255,255,.1)}
+    .btn-danger{background:#c62828;color:#fff;padding:5px 12px;font-size:.75rem}
+    .btn-danger:hover{background:#b71c1c}
+    .btn-sm{padding:5px 12px;font-size:.75rem}
+    .btn-icon{background:transparent;border:1px solid #1a237e;color:#1a237e;
+              border-radius:4px;cursor:pointer;padding:4px 10px;font-size:.75rem}
+    .btn-icon:hover{background:#e8eaf6}
+
+    /* Main */
+    main{max-width:1100px;margin:28px auto;padding:0 16px}
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .page-title{font-size:1.2rem;font-weight:700;color:#1a237e}
+    .stats{font-size:.8rem;color:#888}
+
+    /* Search */
+    .toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+    .search{flex:1;min-width:200px;padding:8px 14px;border:1.5px solid #ddd;
+            border-radius:6px;font-size:.9rem;outline:none}
+    .search:focus{border-color:#1a237e}
+
+    /* Table */
+    .table-wrap{background:#fff;border-radius:8px;box-shadow:0 2px 12px rgba(26,35,126,.08);
+                overflow:auto}
+    table{width:100%;border-collapse:collapse;min-width:700px}
+    th{background:#f5f7ff;font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;
+       color:#1a237e;font-weight:700;padding:12px 14px;text-align:left;
+       border-bottom:2px solid #e8eaf6}
+    td{padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:.85rem;vertical-align:middle}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#fafbff}
+    .thumb{width:40px;height:48px;object-fit:cover;border-radius:3px;
+           border:1px solid #e0e0e0}
+    .grade-chip{display:inline-block;padding:2px 10px;border-radius:12px;
+                color:#fff;font-weight:700;font-size:.75rem}
+    .actions{display:flex;gap:6px;flex-wrap:wrap}
+
+    /* Pagination */
+    .pagination{display:flex;gap:6px;justify-content:center;margin-top:16px;align-items:center}
+    .page-btn{padding:6px 12px;border:1.5px solid #ddd;border-radius:5px;
+              background:#fff;cursor:pointer;font-size:.8rem}
+    .page-btn.active{background:#1a237e;color:#fff;border-color:#1a237e}
+    .page-btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Empty */
+    .empty{text-align:center;padding:48px;color:#aaa;font-size:.9rem}
+
+    /* Loading */
+    .loading{text-align:center;padding:32px;color:#1a237e}
+
+    /* Toast */
+    .toast{position:fixed;bottom:24px;right:24px;background:#1a237e;color:#fff;
+           padding:12px 20px;border-radius:6px;font-size:.85rem;z-index:999;
+           display:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+    .toast.error{background:#c62828}
+    .toast.show{display:block;animation:fadeIn .3s}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    /* Confirm modal */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;
+                   align-items:center;justify-content:center;z-index:100}
+    .modal-overlay.show{display:flex}
+    .modal{background:#fff;border-radius:8px;padding:28px 32px;max-width:400px;
+           width:90%;text-align:center}
+    .modal h3{color:#1a237e;margin-bottom:12px}
+    .modal p{color:#555;font-size:.9rem;margin-bottom:20px}
+    .modal-actions{display:flex;gap:12px;justify-content:center}
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">SSSIHL · Grade Card Management</div>
+  <div class="nav-actions">
+    <button class="btn btn-primary" onclick="location.href='upload.html'">+ Add Student</button>
+    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <div class="page-title">Student Records</div>
+    <div class="stats" id="statsText"></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="search" type="search" id="searchInput" placeholder="Search by name or Regd. No…"/>
+  </div>
+
+  <div class="table-wrap">
+    <div class="loading" id="loading">Loading…</div>
+    <table id="studentTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Photo</th>
+          <th>Name</th>
+          <th>Regd. No.</th>
+          <th>Programme</th>
+          <th>CGPA</th>
+          <th>Grade</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none">No students found.</div>
+  </div>
+
+  <div class="pagination" id="pagination"></div>
+</main>
+
+<!-- Confirm delete modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h3>Delete Student</h3>
+    <p>This will permanently remove the student record, photo, and QR code from storage. This cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" style="color:#333;border-color:#ccc" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirmDeleteBtn" style="padding:8px 20px;font-size:.85rem">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = '';
+  let allStudents = [];
+  let filteredStudents = [];
+  let currentPage = 1;
+  const PAGE_SIZE = 20;
+  let deleteTargetId = null;
+
+  const GRADE_COLORS = {
+    'O':'#c8a951','A+':'#2e7d32','A':'#388e3c','B+':'#1565c0',
+    'B':'#1976d2','C':'#f57f17','P':'#6a1b9a','F':'#c62828',
+  };
+
+  async function loadStudents() {
+    try {
+      const res = await fetch(`${API}/api/admin/students?limit=500`, { credentials: 'include' });
+      if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+      const data = await res.json();
+      allStudents = data.students ?? [];
+      filteredStudents = [...allStudents];
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('studentTable').style.display = 'table';
+      renderPage();
+    } catch {
+      showToast('Failed to load students.', true);
+    }
+  }
+
+  function renderPage() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    filteredStudents = allStudents.filter(s =>
+      s.student_name.toLowerCase().includes(q) ||
+      s.regd_no.toLowerCase().includes(q)
+    );
+    document.getElementById('statsText').textContent =
+      `${filteredStudents.length} record${filteredStudents.length !== 1 ? 's' : ''}`;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const page = filteredStudents.slice(start, start + PAGE_SIZE);
+
+    const tbody = document.getElementById('tbody');
+    if (page.length === 0) {
+      document.getElementById('studentTable').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'block';
+    } else {
+      document.getElementById('studentTable').style.display = 'table';
+      document.getElementById('emptyState').style.display = 'none';
+      tbody.innerHTML = page.map(s => `
+        <tr>
+          <td>${s.photo_r2_key
+            ? `<img class="thumb" src="/assets/${s.photo_r2_key}" alt="${s.student_name}"/>`
+            : '<div style="width:40px;height:48px;background:#e8eaf6;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9fa8da">No photo</div>'
+          }</td>
+          <td><strong>${escHtml(s.student_name)}</strong></td>
+          <td>${escHtml(s.regd_no)}</td>
+          <td>${escHtml(s.programme)}</td>
+          <td><strong>${s.cgpa.toFixed(2)}</strong></td>
+          <td><span class="grade-chip" style="background:${GRADE_COLORS[s.letter_grade]??'#1a237e'}">${escHtml(s.letter_grade)}</span></td>
+          <td>
+            <div class="actions">
+              <button class="btn-icon" onclick="location.href='upload.html?edit=${s.id}'">Edit</button>
+              ${s.qr_r2_key ? `<button class="btn-icon" onclick="downloadQR('${s.id}','${s.regd_no}')">QR</button>` : ''}
+              <button class="btn btn-danger" onclick="confirmDelete('${s.id}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    renderPagination();
+  }
+
+  function renderPagination() {
+    const total = Math.ceil(filteredStudents.length / PAGE_SIZE);
+    const el = document.getElementById('pagination');
+    if (total <= 1) { el.innerHTML = ''; return; }
+    let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹ Prev</button>`;
+    for (let i = 1; i <= total; i++) {
+      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>Next ›</button>`;
+    el.innerHTML = html;
+  }
+
+  function goPage(p) {
+    const total = Math.ceil(filteredStudents.length / PAGE_SIZE);
+    if (p < 1 || p > total) return;
+    currentPage = p;
+    renderPage();
+  }
+
+  function escHtml(str) {
+    const d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(str)));
+    return d.innerHTML;
+  }
+
+  async function downloadQR(id, regdNo) {
+    const res = await fetch(`${API}/api/admin/students/${id}/qr`, { credentials: 'include' });
+    if (!res.ok) { showToast('Could not download QR.', true); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${regdNo}_qr.png`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function confirmDelete(id) {
+    deleteTargetId = id;
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('confirmModal').classList.remove('show');
+    deleteTargetId = null;
+  }
+
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    closeModal();
+    try {
+      const res = await fetch(`${API}/api/admin/students/${id}`, {
+        method: 'DELETE', credentials: 'include',
+      });
+      if (res.ok) {
+        allStudents = allStudents.filter(s => s.id !== id);
+        currentPage = 1;
+        renderPage();
+        showToast('Student deleted successfully.');
+      } else {
+        showToast('Delete failed.', true);
+      }
+    } catch {
+      showToast('Network error.', true);
+    }
+  });
+
+  document.getElementById('searchInput').addEventListener('input', () => {
+    currentPage = 1;
+    renderPage();
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch(`${API}/api/admin/logout`, { method: 'POST', credentials: 'include' });
+    window.location.href = '/admin/login.html';
+  });
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(() => { t.className = 'toast'; }, 3000);
+  }
+
+  // Close modal on overlay click
+  document.getElementById('confirmModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  loadStudents();
+</script>
+</body>
+</html>

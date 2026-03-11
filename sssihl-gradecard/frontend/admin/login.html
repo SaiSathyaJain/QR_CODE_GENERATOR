@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Login — SSSIHL Grade Card Management</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:linear-gradient(135deg,#1a237e 0%,#283593 100%);
+         min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .card{background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.25);
+          padding:40px 36px;width:100%;max-width:380px;text-align:center}
+    .logo{font-size:1rem;font-weight:800;color:#1a237e;letter-spacing:.5px;margin-bottom:6px}
+    .subtitle{font-size:.8rem;color:#888;margin-bottom:28px;text-transform:uppercase;letter-spacing:1px}
+    h1{font-size:1.1rem;font-weight:700;color:#1a237e;margin-bottom:24px}
+    label{display:block;text-align:left;font-size:.75rem;color:#666;font-weight:600;
+          text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    input[type=password]{width:100%;padding:10px 14px;border:1.5px solid #ddd;border-radius:6px;
+                          font-size:.95rem;outline:none;transition:border-color .2s}
+    input[type=password]:focus{border-color:#1a237e}
+    .btn{width:100%;margin-top:20px;padding:11px;background:#1a237e;color:#fff;
+         border:none;border-radius:6px;font-size:.95rem;font-weight:600;cursor:pointer;
+         transition:background .2s}
+    .btn:hover{background:#283593}
+    .btn:disabled{background:#9fa8da;cursor:not-allowed}
+    .error{background:#ffebee;color:#c62828;border:1px solid #ef9a9a;border-radius:6px;
+           padding:10px 14px;font-size:.85rem;margin-top:16px;display:none}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">SSSIHL</div>
+  <div class="subtitle">Sri Sathya Sai Institute of Higher Learning</div>
+  <h1>Grade Card Management Portal</h1>
+  <form id="loginForm">
+    <label for="password">Admin Password</label>
+    <input type="password" id="password" autocomplete="current-password" required placeholder="Enter password"/>
+    <button type="submit" class="btn" id="submitBtn">Sign In</button>
+  </form>
+  <div class="error" id="errorMsg"></div>
+</div>
+<script>
+  const API = '';  // same origin via Pages + Workers integration
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const errEl = document.getElementById('errorMsg');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    try {
+      const res = await fetch(`${API}/api/admin/login`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify({ password: document.getElementById('password').value }),
+      });
+      if (res.ok) {
+        window.location.href = '/admin/dashboard.html';
+      } else {
+        const data = await res.json();
+        errEl.textContent = data.error ?? 'Login failed. Please try again.';
+        errEl.style.display = 'block';
+      }
+    } catch {
+      errEl.textContent = 'Network error. Please try again.';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  });
+</script>
+</body>
+</html>
