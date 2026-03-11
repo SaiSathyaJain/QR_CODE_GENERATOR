@@ -234,7 +234,7 @@
       document.getElementById('cert_approval_date').value = s.cert_approval_date.slice(0,10);
       if (s.photo_r2_key) {
         const img = document.createElement('img');
-        img.src = `/assets/${s.photo_r2_key}`;
+        img.src = `/api/admin/students/${s.id}/photo`;
         document.getElementById('photoPreview').innerHTML = '';
         document.getElementById('photoPreview').appendChild(img);
       }
@@ -352,9 +352,9 @@
     document.getElementById('successPanel').style.display = 'block';
     document.querySelectorAll('.card, .form-actions').forEach(el => el.style.display = 'none');
 
-    if (student.qr_r2_key) {
+    if (student.qr_data_url) {
       const qrImg = document.getElementById('qrSuccessImg');
-      qrImg.src = `/assets/${student.qr_r2_key}`;
+      qrImg.src = student.qr_data_url;
       qrImg.style.display = 'block';
     } else {
       document.getElementById('qrSuccessImg').style.display = 'none';

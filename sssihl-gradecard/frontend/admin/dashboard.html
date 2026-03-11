@@ -191,8 +191,8 @@
       document.getElementById('emptyState').style.display = 'none';
       tbody.innerHTML = page.map(s => `
         <tr>
-          <td>${s.photo_r2_key
-            ? `<img class="thumb" src="/assets/${s.photo_r2_key}" alt="${s.student_name}"/>`
+          <td>${s.has_photo
+            ? `<img class="thumb" src="/api/admin/students/${s.id}/photo" alt="${s.student_name}"/>`
             : '<div style="width:40px;height:48px;background:#e8eaf6;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9fa8da">No photo</div>'
           }</td>
           <td><strong>${escHtml(s.student_name)}</strong></td>
@@ -203,7 +203,7 @@
           <td>
             <div class="actions">
               <button class="btn-icon" onclick="location.href='upload.html?edit=${s.id}'">Edit</button>
-              ${s.qr_r2_key ? `<button class="btn-icon" onclick="downloadQR('${s.id}','${s.regd_no}')">QR</button>` : ''}
+              <button class="btn-icon" onclick="downloadQR('${s.id}','${s.regd_no}')">QR</button>
               <button class="btn btn-danger" onclick="confirmDelete('${s.id}')">Delete</button>
             </div>
           </td>

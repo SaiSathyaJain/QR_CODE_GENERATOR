@@ -19,27 +19,6 @@ app.route('/api/admin', adminRoutes);
 // ── Public grade card routes ──────────────────────────────────────────────────
 app.route('/gradecard', gradecardRoutes);
 
-// ── R2 asset proxy (photos + QR codes) ───────────────────────────────────────
-// Streams R2 objects — keeps the bucket private (5.3)
-app.get('/assets/:key{.+}', async (c) => {
-  const key = c.req.param('key');
-  const obj = await c.env.STORAGE.get(key);
-
-  if (!obj) {
-    return c.json({ error: 'Not found' }, 404);
-  }
-
-  const contentType = obj.httpMetadata?.contentType ?? 'application/octet-stream';
-
-  return new Response(obj.body, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': 'public, max-age=86400',
-      'X-Content-Type-Options': 'nosniff',
-    },
-  });
-});
-
 // ── 404 fallback ─────────────────────────────────────────────────────────────
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

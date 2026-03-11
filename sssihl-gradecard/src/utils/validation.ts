@@ -49,7 +49,8 @@ export function isAllowedImageType(contentType: string): boolean {
   return ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(contentType);
 }
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 MB
+// Photo is stored as base64 in D1 — keep raw file under 200 KB (base64 ≈ 267 KB)
+const MAX_PHOTO_BYTES = 200 * 1024; // 200 KB
 export function isValidFileSize(bytes: number): boolean {
   return bytes > 0 && bytes <= MAX_PHOTO_BYTES;
 }

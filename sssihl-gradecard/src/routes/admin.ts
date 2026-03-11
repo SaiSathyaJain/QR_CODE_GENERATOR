@@ -7,8 +7,7 @@ import {
   updateStudent,
   deleteStudent,
 } from '../services/studentService.js';
-import { generateAndStoreQR } from '../services/qrService.js';
-import { uploadFile, deleteFile, photoKey, qrKey } from '../services/storageService.js';
+import { generateQRDataURL } from '../services/qrService.js';
 import {
   isValidUUID,
   validateStudentInput,
@@ -27,7 +26,13 @@ adminRoutes.get('/students', async (c) => {
   const page = Math.max(1, Number(c.req.query('page') ?? 1));
   const limit = Math.min(100, Math.max(1, Number(c.req.query('limit') ?? 20)));
   const result = await getAllStudents(c.env.DB, page, limit);
-  return c.json(result);
+
+  // Strip photo_data blob from list — replace with boolean flag
+  const students = result.students.map(({ photo_data, ...rest }) => ({
+    ...rest,
+    has_photo: !!photo_data,
+  }));
+  return c.json({ ...result, students });
 });
 
 // ── 9.2  POST /api/admin/students ────────────────────────────────────────────
@@ -49,7 +54,22 @@ adminRoutes.post('/students', async (c) => {
   const errors = validateStudentInput(fields);
   if (errors.length > 0) return c.json({ errors }, 400);
 
-  // Insert student record first (to get the UUID)
+  // Handle photo — convert to base64 data URL before insert
+  let photoData: string | null = null;
+  const photoFile = formData.get('photo') as File | null;
+  if (photoFile && photoFile.size > 0) {
+    if (!isAllowedImageType(photoFile.type)) {
+      return c.json({ error: 'Photo must be JPEG, PNG, or WebP' }, 400);
+    }
+    if (!isValidFileSize(photoFile.size)) {
+      return c.json({ error: 'Photo must be ≤ 200 KB' }, 400);
+    }
+    const buf = await photoFile.arrayBuffer();
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    photoData = `data:${photoFile.type};base64,${b64}`;
+  }
+
+  // Insert student record
   const student = await insertStudent(c.env.DB, {
     student_name: fields.student_name as string,
     regd_no: fields.regd_no as string,
@@ -62,32 +82,15 @@ adminRoutes.post('/students', async (c) => {
     cert_approval_date: fields.cert_approval_date as string,
   });
 
-  // Handle photo upload
-  let photoR2Key: string | null = null;
-  const photoFile = formData.get('photo') as File | null;
-  if (photoFile && photoFile.size > 0) {
-    if (!isAllowedImageType(photoFile.type)) {
-      return c.json({ error: 'Photo must be JPEG, PNG, or WebP' }, 400);
-    }
-    if (!isValidFileSize(photoFile.size)) {
-      return c.json({ error: 'Photo must be ≤ 5 MB' }, 400);
-    }
-    const ext = photoFile.type.split('/')[1].replace('jpeg', 'jpg');
-    photoR2Key = photoKey(student.id, ext);
-    const buf = await photoFile.arrayBuffer();
-    await uploadFile(c.env.STORAGE, photoR2Key, buf, photoFile.type);
+  // Store photo_data if provided
+  if (photoData !== null) {
+    await updateStudent(c.env.DB, student.id, { photo_data: photoData });
   }
 
-  // Generate QR code
-  const qrR2Key = await generateAndStoreQR(c.env, student.id);
+  // Generate QR data URL and attach to response (not stored — generated on each grade card view)
+  const qrDataUrl = await generateQRDataURL(c.env.BASE_URL, student.id);
 
-  // Update record with R2 keys
-  const updated = await updateStudent(c.env.DB, student.id, {
-    photo_r2_key: photoR2Key,
-    qr_r2_key: qrR2Key,
-  });
-
-  return c.json(updated, 201);
+  return c.json({ ...student, photo_data: photoData, qr_data_url: qrDataUrl }, 201);
 });
 
 // ── 9.3  GET /api/admin/students/:id ─────────────────────────────────────────
@@ -109,8 +112,8 @@ adminRoutes.put('/students/:id', async (c) => {
   if (!existing) return c.json({ error: 'Not found' }, 404);
 
   const formData = await c.req.formData();
-
   const updateData: Record<string, unknown> = {};
+
   const textFields = [
     'student_name', 'regd_no', 'programme', 'letter_grade',
     'qualitative_assessment', 'serial_no', 'cert_approval_date',
@@ -131,17 +134,11 @@ adminRoutes.put('/students/:id', async (c) => {
       return c.json({ error: 'Photo must be JPEG, PNG, or WebP' }, 400);
     }
     if (!isValidFileSize(photoFile.size)) {
-      return c.json({ error: 'Photo must be ≤ 5 MB' }, 400);
+      return c.json({ error: 'Photo must be ≤ 200 KB' }, 400);
     }
-    // Delete old photo from R2
-    if (existing.photo_r2_key) {
-      await deleteFile(c.env.STORAGE, existing.photo_r2_key);
-    }
-    const ext = photoFile.type.split('/')[1].replace('jpeg', 'jpg');
-    const newPhotoKey = photoKey(id, ext);
     const buf = await photoFile.arrayBuffer();
-    await uploadFile(c.env.STORAGE, newPhotoKey, buf, photoFile.type);
-    updateData.photo_r2_key = newPhotoKey;
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    updateData.photo_data = `data:${photoFile.type};base64,${b64}`;
   }
 
   const updated = await updateStudent(c.env.DB, id, updateData);
@@ -156,28 +153,51 @@ adminRoutes.delete('/students/:id', async (c) => {
   const student = await getStudentById(c.env.DB, id);
   if (!student) return c.json({ error: 'Not found' }, 404);
 
-  // Delete R2 objects
-  await Promise.all([
-    student.photo_r2_key ? deleteFile(c.env.STORAGE, student.photo_r2_key) : Promise.resolve(),
-    student.qr_r2_key ? deleteFile(c.env.STORAGE, student.qr_r2_key) : Promise.resolve(),
-  ]);
-
   await deleteStudent(c.env.DB, id);
   return c.json({ ok: true });
 });
 
+// ── 9.6a GET /api/admin/students/:id/photo ───────────────────────────────────
+// Serves the base64 photo from D1 as an image response
+adminRoutes.get('/students/:id/photo', async (c) => {
+  const { id } = c.req.param();
+  if (!isValidUUID(id)) return c.json({ error: 'Invalid ID' }, 400);
+
+  const student = await getStudentById(c.env.DB, id);
+  if (!student || !student.photo_data) return c.json({ error: 'Photo not found' }, 404);
+
+  // photo_data is "data:<mime>;base64,<b64>"
+  const [header, b64] = student.photo_data.split(',');
+  const mime = header.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg';
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  return new Response(bytes, {
+    headers: {
+      'Content-Type': mime,
+      'Cache-Control': 'private, max-age=3600',
+    },
+  });
+});
+
 // ── 9.6  GET /api/admin/students/:id/qr ──────────────────────────────────────
+// Generates QR on-the-fly and streams it as a downloadable PNG
 adminRoutes.get('/students/:id/qr', async (c) => {
   const { id } = c.req.param();
   if (!isValidUUID(id)) return c.json({ error: 'Invalid ID' }, 400);
 
   const student = await getStudentById(c.env.DB, id);
-  if (!student || !student.qr_r2_key) return c.json({ error: 'QR not found' }, 404);
+  if (!student) return c.json({ error: 'Not found' }, 404);
 
-  const obj = await c.env.STORAGE.get(student.qr_r2_key);
-  if (!obj) return c.json({ error: 'QR not found in storage' }, 404);
+  const dataUrl = await generateQRDataURL(c.env.BASE_URL, id);
+  // dataUrl = "data:image/png;base64,<b64>"
+  const b64 = dataUrl.split(',')[1];
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-  return new Response(obj.body, {
+  return new Response(bytes, {
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `attachment; filename="${student.regd_no}_qr.png"`,

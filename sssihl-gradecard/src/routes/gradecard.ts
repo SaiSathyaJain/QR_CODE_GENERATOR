@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { getStudentById, logScan } from '../services/studentService.js';
+import { generateQRDataURL } from '../services/qrService.js';
 import { isValidUUID } from '../utils/validation.js';
 import type { Env, Student } from '../types.js';
 
@@ -31,7 +32,10 @@ gradecardRoutes.get('/:id', async (c) => {
   };
   c.executionCtx.waitUntil(logScan(c.env.DB, id, cfData));
 
-  return new Response(buildGradeCardHTML(student, c.env.BASE_URL), {
+  // Generate QR on-the-fly (no R2 needed)
+  const qrDataUrl = await generateQRDataURL(c.env.BASE_URL, id);
+
+  return new Response(buildGradeCardHTML(student, qrDataUrl), {
     status: 200,
     headers: {
       ...htmlHeaders(),
@@ -116,12 +120,11 @@ function todayIST(): string {
   });
 }
 
-function buildGradeCardHTML(s: Student, baseUrl: string): string {
-  const photoSrc = s.photo_r2_key
-    ? `/assets/${s.photo_r2_key}`
-    : 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="140" viewBox="0 0 120 140"><rect width="120" height="140" fill="%23e8eaf6"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%231a237e" font-size="12">No Photo</text></svg>';
+function buildGradeCardHTML(s: Student, qrDataUrl: string): string {
+  const photoSrc = s.photo_data
+    ?? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="140" viewBox="0 0 120 140"><rect width="120" height="140" fill="%23e8eaf6"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%231a237e" font-size="12">No Photo</text></svg>';
 
-  const qrSrc = s.qr_r2_key ? `/assets/${s.qr_r2_key}` : '';
+  const qrSrc = qrDataUrl;
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
