@@ -6,7 +6,7 @@
   <title>Dashboard — SSSIHL Grade Card Management</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh;display:none}
 
     /* Navbar */
     .nav{background:#1a237e;color:#fff;padding:0 24px;display:flex;align-items:center;
@@ -143,7 +143,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const API = '';
+  const API = 'https://sssihl-gradecard.saisathyajain.workers.dev';
   let allStudents = [];
   let filteredStudents = [];
   let currentPage = 1;
@@ -159,6 +159,7 @@
     try {
       const res = await fetch(`${API}/api/admin/students?limit=500`, { credentials: 'include' });
       if (res.status === 401) { window.location.href = '/admin/login.html'; return; }
+      document.body.style.display = 'block';
       const data = await res.json();
       allStudents = data.students ?? [];
       filteredStudents = [...allStudents];
@@ -245,7 +246,7 @@
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `${regdNo}_qr.png`; a.click();
+    a.href = url; a.download = `${regdNo}_qr.svg`; a.click();
     URL.revokeObjectURL(url);
   }
 

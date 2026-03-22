@@ -6,7 +6,7 @@
   <title>Add / Edit Student — SSSIHL Grade Card Management</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;min-height:100vh;display:none}
     .nav{background:#1a237e;color:#fff;padding:0 24px;display:flex;align-items:center;
          justify-content:space-between;height:56px}
     .nav-brand{font-weight:700;font-size:.95rem}
@@ -179,7 +179,7 @@
       </div>
       <div>
         <div style="font-size:.85rem;color:#555;margin-bottom:8px">
-          Upload a clear passport-size photo (JPEG / PNG / WebP, max 5 MB).
+          Upload a clear passport-size photo (JPEG / PNG / WebP). Large photos will be automatically optimized for storage.
         </div>
         <label class="file-btn" for="photoInput">Choose Photo</label>
         <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/webp"/>
@@ -207,16 +207,27 @@
 </main>
 
 <script>
-  const API = '';
+  const API = 'https://sssihl-gradecard.saisathyajain.workers.dev';
   const params = new URLSearchParams(location.search);
   const editId = params.get('edit');
   let createdStudentId = null;
 
-  if (editId) {
-    document.getElementById('pageTitle').textContent = 'Edit Student';
-    document.getElementById('submitBtn').textContent = 'Save Changes';
-    loadStudent(editId);
+  async function initAuth() {
+    try {
+      const res = await fetch(`${API}/api/admin/students?limit=1`, { credentials: 'include' });
+      if (res.status === 401) { window.location.href = 'login.html'; return; }
+      document.body.style.display = 'block';
+    } catch {
+      document.body.style.display = 'block';
+    }
+    
+    if (editId) {
+      document.getElementById('pageTitle').textContent = 'Edit Student';
+      document.getElementById('submitBtn').textContent = 'Save Changes';
+      loadStudent(editId);
+    }
   }
+  initAuth();
 
   async function loadStudent(id) {
     try {
@@ -232,7 +243,7 @@
       document.getElementById('qualitative_assessment').value = s.qualitative_assessment;
       document.getElementById('serial_no').value = s.serial_no;
       document.getElementById('cert_approval_date').value = s.cert_approval_date.slice(0,10);
-      if (s.photo_r2_key) {
+      if (s.photo_data) {
         const img = document.createElement('img');
         img.src = `/api/admin/students/${s.id}/photo`;
         document.getElementById('photoPreview').innerHTML = '';
@@ -294,12 +305,46 @@
       const allowed = ['image/jpeg','image/jpg','image/png','image/webp'];
       if (!allowed.includes(photoFile.type)) {
         photoErr.textContent = 'Photo must be JPEG, PNG, or WebP.'; ok = false;
-      } else if (photoFile.size > 5 * 1024 * 1024) {
-        photoErr.textContent = 'Photo must be ≤ 5 MB.'; ok = false;
       } else { photoErr.textContent = ''; }
     } else { photoErr.textContent = ''; }
 
     return ok;
+  }
+
+  async function compressPhoto(file, maxSizeKB) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width, h = img.height;
+          const maxDim = 800; // Passport sizes won't need more than 800px
+          if (w > maxDim || h > maxDim) {
+            if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+            else { w = Math.round(w * maxDim / h); h = maxDim; }
+          }
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          let quality = 0.9;
+          const attempt = () => {
+            canvas.toBlob((blob) => {
+              if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
+                resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+              } else {
+                quality -= 0.15;
+                attempt();
+              }
+            }, 'image/jpeg', quality);
+          };
+          attempt();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   document.getElementById('submitBtn').addEventListener('click', async () => {
@@ -307,7 +352,7 @@
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.textContent = editId ? 'Saving…' : 'Creating…';
+    btn.textContent = editId ? 'Saving…' : 'Compressing photo…';
     hideAlert();
 
     const fd = new FormData();
@@ -316,8 +361,16 @@
     for (const f of fields) {
       fd.append(f, document.getElementById(f).value);
     }
-    const photoFile = document.getElementById('photoInput').files[0];
-    if (photoFile) fd.append('photo', photoFile);
+    
+    let photoFile = document.getElementById('photoInput').files[0];
+    if (photoFile) {
+      if (photoFile.size > 200 * 1024) {
+        photoFile = await compressPhoto(photoFile, 180); // Safely under 200KB
+      }
+      fd.append('photo', photoFile);
+    }
+    
+    btn.textContent = editId ? 'Saving…' : 'Creating…';
 
     try {
       const url = editId
@@ -366,7 +419,7 @@
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `${student.regd_no}_qr.png`; a.click();
+      a.href = url; a.download = `${student.regd_no}_qr.svg`; a.click();
       URL.revokeObjectURL(url);
     });
   }

@@ -199,8 +199,8 @@ adminRoutes.get('/students/:id/qr', async (c) => {
 
   return new Response(bytes, {
     headers: {
-      'Content-Type': 'image/png',
-      'Content-Disposition': `attachment; filename="${student.regd_no}_qr.png"`,
+      'Content-Type': 'image/svg+xml',
+      'Content-Disposition': `attachment; filename="${student.regd_no}_qr.svg"`,
       'Cache-Control': 'private, no-store',
     },
   });

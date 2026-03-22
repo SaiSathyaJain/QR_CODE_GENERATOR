@@ -3,7 +3,7 @@
  * Native to Cloudflare Workers — no bcrypt binary needed.
  */
 
-const SALT = 'sssihl-grade-card-salt';
+const SALT = 'sssihl-salt';
 const ITERATIONS = 100_000;
 
 async function deriveKey(password: string): Promise<ArrayBuffer> {

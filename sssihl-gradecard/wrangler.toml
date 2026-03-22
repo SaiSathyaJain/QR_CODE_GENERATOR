@@ -6,10 +6,10 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "sssihl-gradecard-db"
-database_id = "<YOUR_D1_DATABASE_ID>"
+database_id = "45bd4073-7df2-485c-b097-d9027e151650"
 
 [vars]
-BASE_URL = "https://gradecard.sssihl.edu.in"
+BASE_URL = "https://sssihl-gradecard.saisathyajain.workers.dev"
 ENVIRONMENT = "production"
 
 # Secrets (set via wrangler secret put):

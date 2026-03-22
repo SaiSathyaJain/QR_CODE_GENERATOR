@@ -1,8 +1,8 @@
 import QRCode from 'qrcode';
 
-const QR_OPTIONS: QRCode.QRCodeToDataURLOptions = {
+const QR_OPTIONS: QRCode.QRCodeToStringOptions = {
   errorCorrectionLevel: 'H',
-  type: 'image/png',
+  type: 'svg',
   width: 400,
   margin: 2,
   color: {
@@ -17,5 +17,7 @@ const QR_OPTIONS: QRCode.QRCodeToDataURLOptions = {
  */
 export async function generateQRDataURL(baseUrl: string, studentId: string): Promise<string> {
   const url = `${baseUrl}/gradecard/${studentId}`;
-  return QRCode.toDataURL(url, QR_OPTIONS);
+  const svg = await QRCode.toString(url, QR_OPTIONS);
+  const b64 = btoa(svg);
+  return `data:image/svg+xml;base64,${b64}`;
 }

@@ -49,7 +49,7 @@ authRoutes.post('/login', async (c) => {
 
   c.header(
     'Set-Cookie',
-    `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`
+    `${COOKIE_NAME}=${token}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=28800`
   );
 
   return c.json({ ok: true });
@@ -59,7 +59,7 @@ authRoutes.post('/login', async (c) => {
 authRoutes.post('/logout', (c) => {
   c.header(
     'Set-Cookie',
-    `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
+    `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`
   );
   return c.json({ ok: true });
 });

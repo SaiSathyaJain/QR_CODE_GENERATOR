@@ -5,13 +5,17 @@ import type { Env } from '../types.js';
  * CORS middleware — only allows the Cloudflare Pages admin domain.
  * Update ALLOWED_ORIGIN after Pages deployment.
  */
-const ALLOWED_ORIGIN = 'https://sssihl-gradecard-admin.pages.dev';
+const ALLOWED_ORIGINS = [
+  'https://sssihl-gradecard-admin.pages.dev',
+  'http://127.0.0.1:8788',
+  'http://localhost:8788'
+];
 
 export const corsMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const origin = c.req.header('Origin') ?? '';
 
   // Allow same-origin and the Pages admin domain
-  const allowed = origin === ALLOWED_ORIGIN || origin === '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) || origin === '';
 
   if (c.req.method === 'OPTIONS') {
     return new Response(null, {

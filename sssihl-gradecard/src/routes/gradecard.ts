@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { getStudentById, logScan } from '../services/studentService.js';
-import { generateQRDataURL } from '../services/qrService.js';
 import { isValidUUID } from '../utils/validation.js';
 import type { Env, Student } from '../types.js';
 
@@ -32,10 +31,7 @@ gradecardRoutes.get('/:id', async (c) => {
   };
   c.executionCtx.waitUntil(logScan(c.env.DB, id, cfData));
 
-  // Generate QR on-the-fly (no R2 needed)
-  const qrDataUrl = await generateQRDataURL(c.env.BASE_URL, id);
-
-  return new Response(buildGradeCardHTML(student, qrDataUrl), {
+  return new Response(buildGradeCardHTML(student), {
     status: 200,
     headers: {
       ...htmlHeaders(),
@@ -99,16 +95,16 @@ function formatDate(iso: string): string {
 
 function gradeColor(grade: string): string {
   const map: Record<string, string> = {
-    'O': '#c8a951',
-    'A+': '#2e7d32',
-    'A': '#388e3c',
-    'B+': '#1565c0',
-    'B': '#1976d2',
-    'C': '#f57f17',
-    'P': '#6a1b9a',
-    'F': '#c62828',
+    'O': '#eab308',
+    'A+': '#22c55e',
+    'A': '#16a34a',
+    'B+': '#3b82f6',
+    'B': '#2563eb',
+    'C': '#f59e0b',
+    'P': '#8b5cf6',
+    'F': '#ef4444',
   };
-  return map[grade.toUpperCase()] ?? '#1a237e';
+  return map[grade.toUpperCase()] ?? '#4f46e5';
 }
 
 function todayIST(): string {
@@ -120,11 +116,9 @@ function todayIST(): string {
   });
 }
 
-function buildGradeCardHTML(s: Student, qrDataUrl: string): string {
+function buildGradeCardHTML(s: Student): string {
   const photoSrc = s.photo_data
     ?? 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="140" viewBox="0 0 120 140"><rect width="120" height="140" fill="%23e8eaf6"/><text x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%231a237e" font-size="12">No Photo</text></svg>';
-
-  const qrSrc = qrDataUrl;
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -132,103 +126,218 @@ function buildGradeCardHTML(s: Student, qrDataUrl: string): string {
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Grade Card — ${escapeHTML(s.student_name)}</title>
-  <style>
-    /* ── Reset & base ── */
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f8;color:#333;
-         display:flex;justify-content:center;padding:24px 16px}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      /* ── Reset & base ── */
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{
+        font-family:'Inter',sans-serif;
+        background:linear-gradient(135deg, #e0e7ff 0%, #fefafe 100%);
+        color:#1e293b;
+        display:flex;
+        justify-content:center;
+        padding:40px 16px;
+        min-height:100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
 
-    /* ── Card wrapper ── */
-    .card{background:#fff;max-width:780px;width:100%;border-radius:8px;
-          box-shadow:0 4px 24px rgba(26,35,126,.15);overflow:hidden;
-          position:relative}
+      /* ── Animations ── */
+      @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
 
-    /* ── Watermark ── */
-    .card::before{content:'SSSIHL';position:absolute;top:50%;left:50%;
-      transform:translate(-50%,-50%) rotate(-30deg);font-size:120px;
-      font-weight:900;color:rgba(26,35,126,.04);pointer-events:none;
-      user-select:none;white-space:nowrap;z-index:0}
+      /* ── Card wrapper ── */
+      .card{
+        background:#fff;
+        max-width:780px;
+        width:100%;
+        border-radius:16px;
+        box-shadow:0 25px 50px -12px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15,23,42,0.05);
+        overflow:hidden;
+        position:relative;
+        animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
 
-    /* ── Header ── */
-    .header{background:linear-gradient(135deg,#1a237e 0%,#283593 100%);
-            color:#fff;padding:28px 32px;text-align:center;position:relative;z-index:1}
-    .header-emblem{width:72px;height:72px;margin:0 auto 12px;display:block}
-    .header h1{font-size:1.25rem;font-weight:700;letter-spacing:.5px;margin-bottom:4px}
-    .header h2{font-size:.85rem;font-weight:400;opacity:.85;letter-spacing:1px;
-               text-transform:uppercase}
-    .divider{height:3px;background:linear-gradient(90deg,transparent,#c8a951,transparent);
-             margin:14px auto 0;width:60%}
+      /* ── Watermark ── */
+      .card::before{
+        content:'SSSIHL';
+        position:absolute;
+        top:50%;left:50%;
+        transform:translate(-50%,-50%) rotate(-30deg);
+        font-size:160px;
+        font-weight:900;
+        color:rgba(238, 242, 255, 0.7);
+        pointer-events:none;
+        user-select:none;
+        white-space:nowrap;
+        z-index:0;
+      }
 
-    /* ── Body ── */
-    .body{padding:28px 32px;position:relative;z-index:1}
+      /* ── Header ── */
+      .header{
+        background:linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        color:#fff;
+        padding:36px 32px;
+        text-align:center;
+        position:relative;
+        z-index:1;
+      }
+      .header::after {
+        content:'';
+        position:absolute;
+        inset:0;
+        background:radial-gradient(circle at top right, rgba(255,255,255,0.1) 0%, transparent 60%);
+        pointer-events:none;
+      }
+      .header-emblem{width:80px;height:80px;margin:0 auto 16px;display:block;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));}
+      .header h1{font-size:1.35rem;font-weight:700;letter-spacing:0.5px;margin-bottom:6px;text-shadow:0 1px 2px rgba(0,0,0,0.3);}
+      .header h2{font-size:0.9rem;font-weight:500;opacity:0.9;letter-spacing:1px;text-transform:uppercase;}
+      .divider{height:4px;background:linear-gradient(90deg,transparent,#fcd34d,transparent);margin:20px auto 0;width:50%; border-radius:4px;}
 
-    /* ── Identity row ── */
-    .identity{display:flex;gap:24px;margin-bottom:24px}
-    .photo{flex-shrink:0}
-    .photo img{width:110px;height:130px;object-fit:cover;border-radius:4px;
-               border:2px solid #1a237e}
-    .identity-info{flex:1}
-    .info-row{display:flex;gap:8px;margin-bottom:8px;align-items:baseline}
-    .info-label{font-size:.75rem;color:#888;font-weight:600;text-transform:uppercase;
-                min-width:130px;letter-spacing:.3px}
-    .info-value{font-size:.95rem;color:#111;font-weight:500}
+      /* ── Body ── */
+      .body{padding:32px 40px;position:relative;z-index:1}
 
-    /* ── Section heading ── */
-    .section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;
-                   color:#1a237e;font-weight:700;border-bottom:1px solid #e8eaf6;
-                   padding-bottom:6px;margin-bottom:16px}
+      /* ── Identity row ── */
+      .identity{
+        display:flex;gap:32px;margin-bottom:32px;align-items:center;
+        background:#f8fafc;padding:20px;border-radius:12px;
+        border:1px solid #f1f5f9;transition:all 0.3s ease;
+      }
+      .identity:hover{box-shadow:0 8px 16px -4px rgba(15,23,42,0.05); transform:translateY(-2px);}
+      .photo{flex-shrink:0}
+      .photo img{
+        width:110px;height:140px;object-fit:cover;
+        border-radius:8px;
+        border:3px solid #fff;
+        box-shadow:0 4px 12px rgba(0,0,0,0.1);
+      }
+      .identity-info{flex:1}
+      .info-row{display:flex;gap:12px;margin-bottom:12px;align-items:baseline}
+      .info-row:last-child{margin-bottom:0;}
+      .info-label{font-size:0.75rem;color:#64748b;font-weight:700;text-transform:uppercase;min-width:110px;letter-spacing:0.5px}
+      .info-value{font-size:1.05rem;color:#0f172a;font-weight:600}
 
-    /* ── Academic grid ── */
-    .academic-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
-    .metric{background:#f5f7ff;border-radius:6px;padding:14px 18px;
-            border-left:3px solid #1a237e}
-    .metric-label{font-size:.7rem;text-transform:uppercase;color:#888;
-                  font-weight:600;letter-spacing:.5px;margin-bottom:4px}
-    .metric-value{font-size:1.6rem;font-weight:800;color:#1a237e}
-    .metric-sub{font-size:.8rem;color:#555;margin-top:2px}
-    .grade-badge{display:inline-block;padding:4px 14px;border-radius:20px;
-                 color:#fff;font-weight:700;font-size:1.1rem}
+      /* ── Section heading ── */
+      .section-title{
+        font-size:0.75rem;
+        text-transform:uppercase;
+        letter-spacing:1.5px;
+        color:#4338ca;
+        font-weight:800;
+        border-bottom:2px solid #e0e7ff;
+        padding-bottom:8px;
+        margin-bottom:20px;
+      }
 
-    /* ── Certificate details ── */
-    .cert-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
-    .cert-item .cert-label{font-size:.7rem;text-transform:uppercase;color:#888;
-                           font-weight:600;letter-spacing:.5px}
-    .cert-item .cert-value{font-size:.95rem;font-weight:600;color:#111;margin-top:2px}
+      /* ── Academic grid ── */
+      .academic-grid{display:grid;grid-template-columns:repeat(2, 1fr);gap:20px;margin-bottom:32px}
+      .metric{
+        background:#fff;
+        border-radius:12px;
+        padding:20px;
+        border:1px solid #e2e8f0;
+        border-left:4px solid #4f46e5;
+        box-shadow:0 2px 4px rgba(0,0,0,0.02);
+        transition:all 0.3s ease;
+      }
+      .metric:hover{
+        transform:translateY(-4px);
+        box-shadow:0 12px 24px -8px rgba(15,23,42,0.1);
+        border-color:#cbd5e1;
+      }
+      .metric-label{font-size:0.7rem;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px;margin-bottom:8px}
+      .metric-value{font-size:1.8rem;font-weight:800;color:#1e1b4b;display:flex;align-items:baseline;gap:8px;}
+      .metric-sub{font-size:0.85rem;color:#64748b;font-weight:500;}
+      .grade-badge{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        padding:6px 16px;
+        border-radius:8px;
+        color:#fff;
+        font-weight:800;
+        font-size:1.3rem;
+        box-shadow:0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      }
 
-    /* ── Verification ── */
-    .verification{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:6px;
-                  padding:14px 18px;display:flex;align-items:center;gap:12px;
-                  margin-bottom:24px}
-    .verify-icon{color:#2e7d32;font-size:1.5rem;flex-shrink:0}
-    .verify-text{font-weight:700;color:#1b5e20;font-size:.9rem}
-    .verify-sub{font-size:.75rem;color:#388e3c;margin-top:2px}
+      /* ── Certificate details ── */
+      .cert-grid{
+        display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;
+        background:#f8fafc;padding:20px;border-radius:12px;border:1px solid #f1f5f9;
+        transition:all 0.3s ease;
+      }
+      .cert-grid:hover{box-shadow:0 8px 16px -4px rgba(15,23,42,0.05); transform:translateY(-2px);}
+      .cert-item .cert-label{font-size:0.75rem;text-transform:uppercase;color:#64748b;font-weight:700;letter-spacing:0.5px}
+      .cert-item .cert-value{font-size:1rem;font-weight:600;color:#0f172a;margin-top:6px}
 
-    /* ── QR ── */
-    .qr-block{text-align:center;margin-bottom:24px}
-    .qr-block img{width:120px;height:120px;border:1px solid #e0e0e0;border-radius:4px}
-    .qr-label{font-size:.7rem;color:#888;margin-top:6px;text-transform:uppercase;
-              letter-spacing:.5px}
+      /* ── Verification ── */
+      .verification{
+        background:linear-gradient(to right, #f0fdf4, #ffffff);
+        border:1px solid #bbf7d0;
+        border-left:4px solid #22c55e;
+        border-radius:12px;
+        padding:16px 20px;
+        display:flex;
+        align-items:center;
+        gap:16px;
+        margin-bottom:8px;
+        box-shadow:0 4px 6px -1px rgba(0,0,0,0.02);
+      }
+      .verify-icon{
+        background:#dcfce7;
+        color:#16a34a;
+        width:40px;height:40px;
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        flex-shrink:0;
+        box-shadow:0 2px 4px rgba(22,163,74,0.1);
+      }
+      .verify-text{font-weight:800;color:#166534;font-size:0.95rem;letter-spacing:0.3px;}
+      .verify-sub{font-size:0.8rem;color:#15803d;margin-top:2px;font-weight:500;}
 
-    /* ── Footer ── */
-    .footer{background:#f5f7ff;border-top:1px solid #e8eaf6;padding:16px 32px;
-            text-align:center;font-size:.75rem;color:#888;position:relative;z-index:1}
-    .footer strong{color:#1a237e}
+      /* ── Footer ── */
+      .footer{
+        background:#f8fafc;
+        border-top:1px solid #e2e8f0;
+        padding:24px 40px;
+        text-align:center;
+        font-size:0.8rem;
+        color:#64748b;
+        position:relative;
+        z-index:1;
+        line-height:1.6;
+      }
+      .footer strong{color:#334155;font-weight:700;}
+      .footer a{color:#4338ca;text-decoration:none;font-weight:600;transition:color 0.2s;}
+      .footer a:hover{color:#312e81;text-decoration:underline;}
 
-    /* ── Responsive ── */
-    @media(max-width:580px){
-      .identity{flex-direction:column;align-items:center}
-      .academic-grid,.cert-grid{grid-template-columns:1fr}
-      .info-label{min-width:100px}
-    }
+      /* ── Responsive ── */
+      @media(max-width:640px){
+        .body{padding:24px 20px;}
+        .identity{flex-direction:column;align-items:center;text-align:center;padding:16px;}
+        .info-row{flex-direction:column;align-items:center;gap:4px;}
+        .info-label{min-width:auto;}
+        .academic-grid,.cert-grid{grid-template-columns:1fr;}
+      }
 
-    /* ── Print ── */
-    @media print{
-      body{background:#fff;padding:0}
-      .card{box-shadow:none;border-radius:0;max-width:100%}
-      .card::before{display:none}
-      @page{size:A4;margin:20mm}
-    }
-  </style>
+      /* ── Print ── */
+      @media print{
+        body{background:#fff;padding:0;}
+        .card{box-shadow:none;border-radius:0;max-width:100%;animation:none;border:none;}
+        .card::before{display:none;}
+        .header{color:#000;background:none;border-bottom:2px solid #333;}
+        .header h1,.header h2,.header-emblem circle,.header-emblem text{fill:#333;stroke:#333;}
+        .header h1{text-shadow:none;}
+        .metric{border-color:#ccc;box-shadow:none;break-inside:avoid;}
+        @page{size:A4;margin:20mm}
+      }
+    </style>
 </head>
 <body>
 <div class="card">
@@ -236,10 +345,10 @@ function buildGradeCardHTML(s: Student, qrDataUrl: string): string {
   <!-- Header -->
   <div class="header">
     <svg class="header-emblem" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="36" cy="36" r="34" fill="none" stroke="#c8a951" stroke-width="2"/>
-      <text x="36" y="28" text-anchor="middle" fill="#c8a951" font-size="10" font-weight="bold">SSSIHL</text>
+      <circle cx="36" cy="36" r="34" fill="none" stroke="#fcd34d" stroke-width="2"/>
+      <text x="36" y="28" text-anchor="middle" fill="#fcd34d" font-size="10" font-weight="bold">SSSIHL</text>
       <text x="36" y="44" text-anchor="middle" fill="#fff" font-size="7">Est. 1981</text>
-      <circle cx="36" cy="36" r="22" fill="none" stroke="#c8a951" stroke-width="1" opacity=".5"/>
+      <circle cx="36" cy="36" r="22" fill="none" stroke="#fcd34d" stroke-width="1" opacity=".5"/>
     </svg>
     <h1>Sri Sathya Sai Institute of Higher Learning</h1>
     <h2>Digital Consolidated Grade Card</h2>
@@ -322,13 +431,6 @@ function buildGradeCardHTML(s: Student, qrDataUrl: string): string {
         <div class="verify-sub">Authenticity confirmed — Office of Controller of Examinations</div>
       </div>
     </div>
-
-    ${qrSrc ? `
-    <!-- QR Code -->
-    <div class="qr-block">
-      <img src="${escapeHTML(qrSrc)}" alt="Verification QR Code"/>
-      <div class="qr-label">Scan to verify authenticity</div>
-    </div>` : ''}
 
   </div><!-- /body -->
 
